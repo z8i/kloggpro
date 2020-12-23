@@ -40,12 +40,6 @@ DRIVER_NAME = 'KlimaLogg'
 DRIVER_VERSION = '1.4.2'
 PRESS_USB = "press the USB button to start communication"
 
-stn_dict = { #stn_dict originates from weex.drivers.AbstractDevice
-    'vendor_id': 0x6666,
-    'product_id': 0x5555,
-    'transceiver_frequency': 'EU'
-}
-
 
 ACTION_GET_HISTORY = 0x00
 ACTION_REQ_SET_TIME = 0x01
