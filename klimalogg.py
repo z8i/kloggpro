@@ -93,7 +93,7 @@ frequencies = {
 }
 
 # flags for enabling/disabling debug verbosity
-DEBUG_COMM = 2
+DEBUG_COMM = 0
 DEBUG_CONFIG_DATA = 0  #in use"
 DEBUG_WEATHER_DATA = 0
 DEBUG_HISTORY_DATA = 0
@@ -1594,35 +1594,29 @@ class KlimaLoggDriver():
         [Optional.  Default is 1800]
         """
         loginf('driver version is %s' % DRIVER_VERSION)
-        self.vendor_id = stn_dict.get('vendor_id', 0x6666)
-        self.product_id = stn_dict.get('product_id', 0x5555)
-        self.model = stn_dict.get('model', 'TFA KlimaLogg Pro')
-        self.polling_interval = int(stn_dict.get('polling_interval', 10))
-        self.comm_interval = int(stn_dict.get('comm_interval', 8))
-        self.logger_channel = int(stn_dict.get('logger_channel', 1))
+        self.vendor_id          = 0x6666
+        self.product_id         = 0x5555
+        self.model              = 'TFA KlimaLogg Pro'
+        self.polling_interval   = 10
+        self.comm_interval      = 8
+        self.logger_channel     = 1
         loginf('channel is %s' % self.logger_channel)
-        self.frequency = stn_dict.get('transceiver_frequency', 'EU')
+        self.frequency          = 'EU'
         loginf('frequency is %s' % self.frequency)
-        self.config_serial = stn_dict.get('serial', None)
+        self.config_serial      = None
         if self.config_serial is not None:
             loginf('serial is %s' % self.config_serial)
-        self.sensor_map = stn_dict.get('sensor_map', None)
-        if self.sensor_map is None:
-            sensor_map_id = int(stn_dict.get('sensor_map_id', 0))
-            self.sensor_map = KL_SENSOR_MAP
-            logdbg('using sensor map for kl schema')
-        else:
-            logdbg('using custom sensor map')
+        self.sensor_map         = KL_SENSOR_MAP
         loginf('sensor map is: %s' % self.sensor_map)
-        self.max_history_records = int(stn_dict.get('max_history_records', 51200))
+        self.max_history_records = 51200
         loginf('catchup limited to %s records' % self.max_history_records)
-        self.batch_size = int(stn_dict.get('batch_size', 1800))
-        timing = int(stn_dict.get('timing', 300))
+        self.batch_size         = 1800
+        timing                  = 300
         self.first_sleep = float(timing) / 1000.0
         loginf('timing is %s ms (%0.3f s)' % (timing, self.first_sleep))
         self.values = dict()
         for i in range(1, 9):
-            self.values['sensor_text%d' % i] = stn_dict.get('sensor_text%d' % i, None)
+            self.values['sensor_text%d' % i] = None
 
         now = int(time.time())
         self._service = None
