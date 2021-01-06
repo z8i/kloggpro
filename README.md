@@ -51,3 +51,5 @@ for packet in kldr.genLoopPackets():
     print("Time: {} - {}".format(packet['dateTime'], packet))
     time.sleep(5)
 ```
+After finishing:  
+`kldr.shutDown()`
