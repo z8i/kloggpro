@@ -20,4 +20,7 @@ setuptools.setup(
         "Operating System :: POSIX :: Linux",
     ],
     python_requires='>=3.6',
+    install_requires=[
+        'pyusb'
+    ],
 )
