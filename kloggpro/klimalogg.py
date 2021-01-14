@@ -132,19 +132,19 @@ log = logging.getLogger(__name__)
 
 def logdbg(msg):
     log.debug(msg)
-    print(msg)
+    #print(msg)
 
 def loginf(msg):
     log.info(msg)
-    print(msg)
+    #print(msg)
     
 def logtee(msg):
     loginf(msg)
-    print("%s\r" % msg)
+    #print("%s\r" % msg)
 
 def logerr(msg):
     log.error(msg)
-    print(msg)
+    #print(msg)
 
 def logconsole(): #Hiermit kann die Konsole als Logging-Anzeige gesetzt werden
     ch = logging.StreamHandler()
@@ -859,7 +859,7 @@ class CommunicationService(object):
         # calculate the frequency then set frequency registers
         logdbg('frequency standard: %s' % frequency_standard)
         freq = frequencies.get(frequency_standard, frequencies['EU'])
-        loginf('base frequency: %d' % freq)
+        logdbg('base frequency: %d' % freq)
         try:
             freqVal = long(freq / 16000000.0 * 16777216.0)    # python 2
         except NameError:
@@ -871,11 +871,11 @@ class CommunicationService(object):
         corVal |= corVec[2]
         corVal <<= 8
         corVal |= corVec[3]
-        loginf('frequency correction: %d (0x%x)' % (corVal, corVal))
+        logdbg('frequency correction: %d (0x%x)' % (corVal, corVal))
         freqVal += corVal
         if not (freqVal % 2):
             freqVal += 1
-        loginf('adjusted frequency: %d (0x%x)' % (freqVal, freqVal))
+        logdbg('adjusted frequency: %d (0x%x)' % (freqVal, freqVal))
         self.reg_names[AX5051RegisterNames.FREQ3] = (freqVal >> 24) & 0xFF
         self.reg_names[AX5051RegisterNames.FREQ2] = (freqVal >> 16) & 0xFF
         self.reg_names[AX5051RegisterNames.FREQ1] = (freqVal >> 8)  & 0xFF
@@ -994,7 +994,7 @@ class CommunicationService(object):
 
     def stopRFThread(self):
         self.running = False
-        logdbg('stopRFThread: waiting for RF thread to terminate')
+        loginf('stopRFThread: waiting for RF thread to terminate')
         self.child.join(self.thread_wait)
         if self.child.isAlive():
             logerr('unable to terminate RF thread after %d seconds' %
@@ -1594,16 +1594,16 @@ class KlimaLoggDriver():
         self.polling_interval   = 10
         self.comm_interval      = 8
         self.logger_channel     = 1
-        loginf('channel is %s' % self.logger_channel)
+        logdbg('channel is %s' % self.logger_channel)
         self.frequency          = 'EU'
-        loginf('frequency is %s' % self.frequency)
+        logdbg('frequency is %s' % self.frequency)
         self.config_serial      = None
         if self.config_serial is not None:
-            loginf('serial is %s' % self.config_serial)
+            logdbg('serial is %s' % self.config_serial)
         self.sensor_map         = KL_SENSOR_MAP
-        loginf('sensor map is: %s' % self.sensor_map)
+        logdbg('sensor map is: %s' % self.sensor_map)
         self.max_history_records = 51200
-        loginf('catchup limited to %s records' % self.max_history_records)
+        logdbg('catchup limited to %s records' % self.max_history_records)
         self.batch_size         = 1800
         timing                  = 300
         self.first_sleep = float(timing) / 1000.0
@@ -2342,17 +2342,17 @@ class Transceiver(object):
             for dev in bus.devices:
                 if dev.idVendor == vid and dev.idProduct == pid:
                     if serial is None:
-                        loginf('found transceiver at bus={} device={}'.format(
+                        logdbg('found transceiver at bus={} device={}'.format(
                                bus.dirname, dev.filename))
                         return dev
                     else:
                         sn = Transceiver._read_serial(dev)
                         if str(serial) == sn:
-                            loginf('found transceiver at bus=%s device=%s serial=%s' %
+                            logdbg('found transceiver at bus=%s device=%s serial=%s' %
                                    (bus.dirname, dev.filename, sn))
                             return dev
                         else:
-                            loginf('skipping transceiver with serial %s (looking for %s)' %
+                            logdbg('skipping transceiver with serial %s (looking for %s)' %
                                    (sn, serial))
         return None
 
@@ -2383,9 +2383,10 @@ class Transceiver(object):
         if not handle:
             raise NameError('Open USB device failed')
 
-        loginf('manufacturer: %s' % handle.getString(dev.iManufacturer, 30))
-        loginf('product: %s' % handle.getString(dev.iProduct, 30))
-        loginf('interface: %d' % interface)
+        loginf(f"manufacturer: {handle.getString(dev.iManufacturer, 30)}; product: {handle.getString(dev.iProduct, 30)}")
+        #loginf('manufacturer: %s' % handle.getString(dev.iManufacturer, 30))
+        #loginf('product: %s' % handle.getString(dev.iProduct, 30))
+        logdbg('interface: %d' % interface)
 
         # be sure kernel does not claim the interface
         try:
@@ -2422,7 +2423,7 @@ class Transceiver(object):
     def _close_device(handle):
         if handle is not None:
             try:
-                logdbg('releasing USB interface')
+                loginf('releasing USB interface')
                 handle.releaseInterface()
             except usb.USBError:
                 pass

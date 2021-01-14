@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="kloggpro", 
-    version="0.0.1",
+    version="0.0.2",
     author="Martin (z8i)",
     author_email="github@z8i.de",
     description="Package for TFA KlimaLoggPro-Driver to use with Home Assistant",
