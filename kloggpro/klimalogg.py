@@ -912,7 +912,18 @@ class CommunicationService(object):
         self.comm_mode_interval = comm_interval
         self.logger_id = logger_channel - 1
         self.config_serial = serial
+
+    #    loop = asyncio.get_running_loop()
+
+
+
+    #    await loop.run_in_executor(None, self.hid.open,
+    #                                    vendor_id, 
+    #                                    product_id, 
+    #                                    serial)
+
         await self.hid.open(vendor_id, product_id, serial)
+
         self.initTransceiver(frequency_standard)
         self.transceiver_present = True
 
@@ -992,14 +1003,14 @@ class CommunicationService(object):
             return
         logdbg('startRFThread: spawning RF thread')
         self.running = True
-        #self.child = threading.Thread(target=self.doRF)
-        self.child = threading.Thread(target=self.run_async, args=(self.doRF(),))
+        self.child = threading.Thread(target=self.doRF)
+        #self.child = threading.Thread(target=self.run_async, args=(self.doRF(),))
         self.child.setName('RFComm')
         self.child.setDaemon(True)
         self.child.start()
     
-    def run_async(self, coro):
-        asyncio.run(coro)
+    #def run_async(self, coro):
+    #    asyncio.run(coro)
 
     def stopRFThread(self):
         self.running = False
@@ -1014,16 +1025,17 @@ class CommunicationService(object):
     def isRunning(self):
         return self.running
 
-    async def doRF(self):
+    def doRF(self):
         try:
             logdbg('setting up rf communication')
-            await self.doRFSetup()
+            self.doRFSetup()
             # wait for genStartupRecords or show_current to start
             while self.history_cache.wait_at_start == 1:
-                await asyncio.sleep(1)
+                time.sleep(1)
+                #await asyncio.sleep(1)
             loginf("starting rf communication")
             while self.running:
-                await self.doRFCommunication()
+                self.doRFCommunication()
         except Exception as e:
             logerr('exception in doRF: %s' % e)
             self.running = False
@@ -1035,21 +1047,21 @@ class CommunicationService(object):
     # however, HeavyWeatherPro seems to do it this way on a first time config.
     # doing it this way makes configuration easier during a factory reset and
     # when re-establishing communication with the station sensors.
-    async def doRFSetup(self):
+    def doRFSetup(self):
         self.hid.execute(5)
         self.hid.setPreamblePattern(0xaa)
         self.hid.setState(0)
-        await asyncio.sleep(1)
+        time.sleep(1)
         self.hid.setRX()
 
         self.hid.setPreamblePattern(0xaa)
         self.hid.setState(0x1e)
-        await asyncio.sleep(1)
+        time.sleep(1)
         self.hid.setRX()
         self.setSleep(0.075, 0.005)
 
-    async def doRFCommunication(self):
-        await asyncio.sleep(self.firstSleep)
+    def doRFCommunication(self):
+        time.sleep(self.firstSleep)
         self.pollCount = 0
         while self.running:
             statebuf = [0] * 2
@@ -1057,18 +1069,18 @@ class CommunicationService(object):
                 statebuf = self.hid.getState()
             except Exception as e:
                 logerr('getState failed: %s' % e)
-                await asyncio.sleep(5)
+                time.sleep(5)
                 pass
             self.pollCount += 1
             if statebuf[0] == 0x16:
                 break
-            await asyncio.sleep(self.nextSleep)
+            time.sleep(self.nextSleep)
         else:
             return
 
         framelen, framebuf = self.hid.getFrame()
         try:
-            framelen, framebuf = await self.generateResponse(framelen, framebuf)
+            framelen, framebuf = self.generateResponse(framelen, framebuf)
             self.hid.setFrame(framelen, framebuf)
             self.hid.setTX()
         except DataWritten:
@@ -1553,7 +1565,7 @@ class KlimaLoggDriver():
     # address range: 0x070000-0x1fffe0
     max_records = 51200
 
-    def __init__(self):
+    def __init__(self, event_loop, *args, **kwargs):
         """Initialize the station object.
 
         model: Which station model is this?
@@ -1597,6 +1609,7 @@ class KlimaLoggDriver():
         [Optional.  Default is 1800]
         """
         loginf('driver version is %s' % DRIVER_VERSION)
+        self.event_loop = event_loop
         self.vendor_id          = 0x6666
         self.product_id         = 0x5555
         self.model              = 'TFA KlimaLogg Pro'
@@ -1636,7 +1649,8 @@ class KlimaLoggDriver():
 
 
         #self.startUp()
-        asyncio.ensure_future(self.startUp())
+        #asyncio.ensure_future(self.startUp())
+        asyncio.run_coroutine_threadsafe(self.startUp(), self.event_loop)
 
     async def show_history(self, maxtries, ts=0, count=0):
         """Display the indicated number of records or the records since the 
@@ -1841,9 +1855,20 @@ class KlimaLoggDriver():
     async def startUp(self):
         if self._service is not None:
             return
+        
+        #loop = asyncio.get_running_loop()
+
         self._service = CommunicationService(self.first_sleep, self.values,
                                              self.max_history_records,
                                              self.batch_size)
+
+    #    await self.event_loop.run_in_executor(None, self._service.setup,
+    #                                        self.frequency, 
+    #                                        self.comm_interval,
+    #                                        self.logger_channel, 
+    #                                        self.vendor_id,
+    #                                        self.product_id, 
+    #                                        self.config_serial)
         await self._service.setup(self.frequency, self.comm_interval,
                             self.logger_channel, self.vendor_id,
                             self.product_id, self.config_serial)
@@ -2337,19 +2362,27 @@ class Transceiver(object):
         self.last_dump = None
 
     async def open(self, vid, pid, serial):
-        device = await Transceiver._find_device(vid, pid, serial)
+        loop = asyncio.get_running_loop()
+
+        device = await loop.run_in_executor(None, Transceiver._find_device,
+                                                    vid, 
+                                                    pid, 
+                                                    serial)
+
+    #    device = Transceiver._find_device(vid, pid, serial)
+
         if device is None:
             logerr('Cannot find USB device with Vendor=0x%04x ProdID=0x%04x Serial=%s' % 
                    (vid, pid, serial))
             raise NameError('Unable to find transceiver on USB')
-        self.devh = await self._open_device(device)
+        self.devh = self._open_device(device)
 
     def close(self):
         Transceiver._close_device(self.devh)
         self.devh = None
 
     @staticmethod
-    async def _find_device(vid, pid, serial):
+    def _find_device(vid, pid, serial):
         for bus in usb.busses():
             for dev in bus.devices:
                 if dev.idVendor == vid and dev.idProduct == pid:
@@ -2358,7 +2391,7 @@ class Transceiver(object):
                                bus.dirname, dev.filename))
                         return dev
                     else:
-                        sn = await Transceiver._read_serial(dev)
+                        sn = Transceiver._read_serial(dev)
                         if str(serial) == sn:
                             logdbg('found transceiver at bus=%s device=%s serial=%s' %
                                    (bus.dirname, dev.filename, sn))
@@ -2369,14 +2402,14 @@ class Transceiver(object):
         return None
 
     @staticmethod
-    async def _read_serial(dev):
+    def _read_serial(dev):
         handle = None
         try:
             # see if we can read the serial without claiming the interface.
             # we do not want to disrupt any process that might already be
             # using the device.
-            handle = await Transceiver._open_device(dev)
-            buf = await Transceiver.readCfg(handle, 0x1F9, 7)
+            handle = Transceiver._open_device(dev)
+            buf = Transceiver.readCfg(handle, 0x1F9, 7)
             if buf:
                 return ''.join(['%02d' % x for x in buf[0:7]])
         except usb.USBError as e:
@@ -2390,7 +2423,7 @@ class Transceiver(object):
         return None
 
     @staticmethod
-    async def _open_device(dev, interface=0):
+    def _open_device(dev, interface=0):
         handle = dev.open()
         if not handle:
             raise NameError('Open USB device failed')
@@ -2419,16 +2452,16 @@ class Transceiver(object):
         # FIXME: check return values
         usb_wait = 0.05
         handle.getDescriptor(0x1, 0, 0x12)
-        await asyncio.sleep(usb_wait)
+        time.sleep(usb_wait)
         handle.getDescriptor(0x2, 0, 0x9)
-        await asyncio.sleep(usb_wait)
+        time.sleep(usb_wait)
         handle.getDescriptor(0x2, 0, 0x22)
-        await asyncio.sleep(usb_wait)
+        time.sleep(usb_wait)
         handle.controlMsg(usb.TYPE_CLASS + usb.RECIP_INTERFACE,
                           0xa, [], 0x0, 0x0, 1000)
-        await asyncio.sleep(usb_wait)
+        time.sleep(usb_wait)
         handle.getDescriptor(0x22, 0, 0x2a9)
-        await asyncio.sleep(usb_wait)
+        time.sleep(usb_wait)
         return handle
 
     @staticmethod
@@ -2642,7 +2675,7 @@ class Transceiver(object):
             self.last_dump = None
 
     @staticmethod
-    async def readCfg(handle, addr, nbytes, timeout=1000):
+    def readCfg(handle, addr, nbytes, timeout=1000):
         new_data = [0] * 0x15
         while nbytes:
             buf = [0xcc] * 0x0f  # 0x15
@@ -2675,6 +2708,9 @@ class Transceiver(object):
                 addr += 16
         return new_data
 
+#-------------------------------------------------------------------------------
+# End of Transceiver
+#-------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     # kldr = KlimaLoggConfigurator()
