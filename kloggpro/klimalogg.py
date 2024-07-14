@@ -1615,7 +1615,7 @@ class KlimaLoggDriver():
         self.values = dict()
         for i in range(1, 9):
             self.values['sensor_text%d' % i] = None
-        self.critical_alerts = stn_dict.get('critical_alerts', "log")
+        self.critical_alerts = "log"
         loginf('critical alerts are reported via "log"')
 
         now = int(time.time())
